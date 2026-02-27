@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { identify } from '../services/contactService.js';
-import { IdentifyRequest } from '../types/index.js';
+import { identify } from '../services/contactService';
+import { IdentifyRequest } from '../types/index';
 
 const router = Router();
 

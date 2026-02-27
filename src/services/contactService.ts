@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { IdentifyRequest, IdentifyResponse } from "../types/index.js";
+import { IdentifyRequest, IdentifyResponse } from "../types/index";
 
 const prisma = new PrismaClient();
 
