@@ -1,13 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { identify } from '../services/contactService';
+import { identify } from '../services/contactService.js';
+import { IdentifyRequest } from '../types/index.js';
 
 const router = Router();
 
 router.post('/', async (req: Request, res: Response) => {
-  const { email, phoneNumber } = req.body as {
-    email?: string;
-    phoneNumber?: string;
-  };
+  const { email, phoneNumber } = req.body as IdentifyRequest;
 
   // basic validation: require at least one identifier
   if (!email && !phoneNumber) {

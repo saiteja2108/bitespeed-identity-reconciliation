@@ -1,20 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { IdentifyRequest, IdentifyResponse } from "../types/index.js";
 
 const prisma = new PrismaClient();
-
-interface IdentifyRequest {
-  email?: string;
-  phoneNumber?: string;
-}
-
-interface IdentifyResponse {
-  contact: {
-    primaryContactId: number;
-    emails: string[];
-    phoneNumbers: string[];
-    secondaryContactIds: number[];
-  };
-}
 
 function uniq<T>(arr: T[]) {
   return Array.from(new Set(arr));

@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import identifyRouter from './routes/identify';
+import identifyRouter from './routes/identify.js';
 
 dotenv.config();
 
