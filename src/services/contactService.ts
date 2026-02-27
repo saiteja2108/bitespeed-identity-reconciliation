@@ -1,13 +1,4 @@
-import { PrismaClient, Contact, LinkPrecedence } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
-interface IdentifyRequest {
-  email?: string;
-  phoneNumber?: string;
-}
-
-import { PrismaClient, LinkPrecedence } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -37,36 +28,34 @@ export async function identify(data: IdentifyRequest): Promise<IdentifyResponse>
     if (email) whereClauses.push({ email });
     if (phoneNumber) whereClauses.push({ phoneNumber });
 
-    // Find any contacts that match incoming identifiers
-    const matches = await tx.contact.findMany({ where: { OR: whereClauses } });
+    const matches = whereClauses.length
+      ? await tx.contact.findMany({ where: { OR: whereClauses } })
+      : [];
 
-    // If no matches, create a new primary contact
+    // 1️⃣ No matches → create new primary
     if (matches.length === 0) {
       const created = await tx.contact.create({
         data: {
           email: email ?? null,
           phoneNumber: phoneNumber ?? null,
-          linkPrecedence: LinkPrecedence.PRIMARY,
+          linkPrecedence: "primary",
         },
       });
-
-      const emails = created.email ? [created.email] : [];
-      const phones = created.phoneNumber ? [created.phoneNumber] : [];
 
       return {
         contact: {
           primaryContactId: created.id,
-          emails,
-          phoneNumbers: phones,
+          emails: created.email ? [created.email] : [],
+          phoneNumbers: created.phoneNumber ? [created.phoneNumber] : [],
           secondaryContactIds: [],
         },
       };
     }
 
-    // Determine primary contact ids for matched contacts
+    // 2️⃣ Collect primary IDs
     const primaryIdSet = new Set<number>();
     for (const c of matches) {
-      if (c.linkPrecedence === LinkPrecedence.PRIMARY) {
+      if (c.linkPrecedence === "primary") {
         primaryIdSet.add(c.id);
       } else if (c.linkedId) {
         primaryIdSet.add(c.linkedId);
@@ -75,73 +64,105 @@ export async function identify(data: IdentifyRequest): Promise<IdentifyResponse>
 
     const primaryIds = Array.from(primaryIdSet);
 
-    // Fetch all contacts that belong to these primaries (the primaries and their secondaries)
     const allRelated = await tx.contact.findMany({
       where: {
-        OR: [{ id: { in: primaryIds } }, { linkedId: { in: primaryIds } }],
+        OR: [
+          { id: { in: primaryIds } },
+          { linkedId: { in: primaryIds } },
+        ],
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
 
-    // Identify current primary contacts among the related set
-    const currentPrimaries = allRelated.filter((c) => c.linkPrecedence === LinkPrecedence.PRIMARY);
+    const currentPrimaries = allRelated.filter(
+      (c) => c.linkPrecedence === "primary"
+    );
 
-    // Choose the oldest primary (by createdAt) as the final primary
-    currentPrimaries.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    currentPrimaries.sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+    );
+
     const finalPrimary = currentPrimaries[0];
 
-    // If there are other primaries, merge them into finalPrimary
-    const otherPrimaries = currentPrimaries.filter((p) => p.id !== finalPrimary.id);
+    // 3️⃣ Merge other primaries
+    const otherPrimaries = currentPrimaries.filter(
+      (p) => p.id !== finalPrimary.id
+    );
+
     for (const other of otherPrimaries) {
-      // reassign the other primary and all of its secondaries to point to finalPrimary
       await tx.contact.updateMany({
-        where: { OR: [{ id: other.id }, { linkedId: other.id }] },
-        data: { linkPrecedence: LinkPrecedence.SECONDARY, linkedId: finalPrimary.id },
+        where: {
+          OR: [{ id: other.id }, { linkedId: other.id }],
+        },
+        data: {
+          linkPrecedence: "secondary",
+          linkedId: finalPrimary.id,
+        },
       });
     }
 
-    // Re-fetch the unified group (final primary + its secondaries)
-    const group = await tx.contact.findMany({ where: { OR: [{ id: finalPrimary.id }, { linkedId: finalPrimary.id }] } });
+    // 4️⃣ Refresh unified group
+    let group = await tx.contact.findMany({
+      where: {
+        OR: [
+          { id: finalPrimary.id },
+          { linkedId: finalPrimary.id },
+        ],
+      },
+    });
 
-    // If the incoming payload contains new information not present in the group, create a new secondary
-    const existingEmails = new Set(group.map((c) => c.email).filter(Boolean));
-    const existingPhones = new Set(group.map((c) => c.phoneNumber).filter(Boolean));
+    // 5️⃣ Add new secondary if new info provided
+    const existingEmails = new Set(
+      group.map((c) => c.email).filter(Boolean)
+    );
+    const existingPhones = new Set(
+      group.map((c) => c.phoneNumber).filter(Boolean)
+    );
 
-    const needsCreate = (email && !existingEmails.has(email)) || (phoneNumber && !existingPhones.has(phoneNumber));
+    const needsCreate =
+      (email && !existingEmails.has(email)) ||
+      (phoneNumber && !existingPhones.has(phoneNumber));
+
     if (needsCreate) {
       const createdSecondary = await tx.contact.create({
         data: {
           email: email ?? null,
           phoneNumber: phoneNumber ?? null,
-          linkPrecedence: LinkPrecedence.SECONDARY,
+          linkPrecedence: "secondary",
           linkedId: finalPrimary.id,
         },
       });
+
       group.push(createdSecondary);
     }
 
-    // Build unique lists of emails and phone numbers
-    const emails = uniq(group.map((c) => c.email).filter((e): e is string => Boolean(e)));
-    const phones = uniq(group.map((c) => c.phoneNumber).filter((p): p is string => Boolean(p)));
+    // 6️⃣ Build response arrays
+    const emails = uniq(
+      group
+        .map((c) => c.email)
+        .filter((e): e is string => Boolean(e))
+    );
 
-    // Ensure primary's email/phone are first in arrays
+    const phones = uniq(
+      group
+        .map((c) => c.phoneNumber)
+        .filter((p): p is string => Boolean(p))
+    );
+
+    // Ensure primary's values first
     if (finalPrimary.email) {
-      const idx = emails.indexOf(finalPrimary.email);
-      if (idx > -1) {
-        emails.splice(idx, 1);
-      }
+      emails.splice(emails.indexOf(finalPrimary.email), 1);
       emails.unshift(finalPrimary.email);
     }
 
     if (finalPrimary.phoneNumber) {
-      const idx = phones.indexOf(finalPrimary.phoneNumber);
-      if (idx > -1) {
-        phones.splice(idx, 1);
-      }
+      phones.splice(phones.indexOf(finalPrimary.phoneNumber), 1);
       phones.unshift(finalPrimary.phoneNumber);
     }
 
-    const secondaryContactIds = group.filter((c) => c.linkPrecedence === LinkPrecedence.SECONDARY).map((c) => c.id);
+    const secondaryContactIds = group
+      .filter((c) => c.linkPrecedence === "secondary")
+      .map((c) => c.id);
 
     return {
       contact: {

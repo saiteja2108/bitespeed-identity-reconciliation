@@ -3,27 +3,20 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
-// Identity reconciliation contacts
 model Contact {
   id             Int       @id @default(autoincrement())
-  email          String?   @unique
-  phoneNumber    String?   @unique
+  email          String?
+  phoneNumber    String?
   linkedId       Int?
-  linkPrecedence LinkPrecedence @default(PRIMARY)
+  linkPrecedence String    @default("primary")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  // self relation for linked contacts
-  primaryContact Contact?  @relation("ContactToSecondary", fields: [linkedId], references: [id])
-  secondaryContacts Contact[] @relation("ContactToSecondary")
-}
-
-enum LinkPrecedence {
-  PRIMARY
-  SECONDARY
+  primaryContact     Contact?   @relation("ContactToSecondary", fields: [linkedId], references: [id])
+  secondaryContacts  Contact[]  @relation("ContactToSecondary")
 }
