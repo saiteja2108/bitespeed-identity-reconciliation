@@ -113,9 +113,7 @@ The service is deployed and live on Render:
 ### Example Request
 
 ```bash
-curl -X POST https://bitespeed-identity-reconciliation-6zxf.onrender.com/identify \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","phoneNumber":"1234567890"}'
+curl -X POST https://bitespeed-identity-reconciliation-6zxf.onrender.com/identify -H "Content-Type: application/json" -d "{\"email\":\"lorraine@hillvalley.edu\",\"phoneNumber\":\"123456\"}"
 ```
 
 ### Example Response
