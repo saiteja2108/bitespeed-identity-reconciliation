@@ -104,8 +104,32 @@ Repository
 Examples & testing
 - Use `curl` or Postman to POST to `/identify` with JSON body.
 
-Placeholder for hosted URL
-- Hosted URL: (add after deployment)
+## Live Deployment
+
+The service is deployed and live on Render:
+
+**Base URL:** `https://bitespeed-identity-reconciliation-6zxf.onrender.com`
+
+### Example Request
+
+```bash
+curl -X POST https://bitespeed-identity-reconciliation-6zxf.onrender.com/identify \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","phoneNumber":"1234567890"}'
+```
+
+### Example Response
+
+```json
+{
+  "contact": {
+    "primaryContactId": 1,
+    "emails": ["user@example.com"],
+    "phoneNumbers": ["1234567890"],
+    "secondaryContactIds": []
+  }
+}
+```
 
 Contributing
 - Follow conventional commits for meaningful commit messages.
