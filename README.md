@@ -71,7 +71,18 @@ Notes & business rules
 Deploying to Render (high-level)
 
 1. Create a new Web Service on Render and connect your GitHub repo.
-2. Set the build command: `npm run build` and start command: `npm start`.
+2. Set the build command and start command. Use the following so dev dependencies
+   (like TypeScript types) are available during compilation:
+
+   ```bash
+   npm install --include=dev && npm run build && npm run prepare && npx prisma migrate deploy
+   ```
+
+   and set the start command to:
+
+   ```bash
+   npm start
+   ```
 3. Configure environment variables on Render:
 	 - `DATABASE_URL` -> your Postgres connection string
 	 - `PORT` (optional)
