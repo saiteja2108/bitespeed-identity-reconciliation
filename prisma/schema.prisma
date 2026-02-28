@@ -3,7 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
+  // Configure DATABASE_URL in .env (or Render environment) to point at your
+  // PostgreSQL database. Example:
+  // DATABASE_URL="postgresql://user:password@localhost:5432/mydb"
+  // In production Render will provide a value automatically when you add a
+  // PostgreSQL service.
   url      = env("DATABASE_URL")
 }
 
